@@ -15,6 +15,11 @@ from sqlalchemy import or_
 import os
 import sys
 from werkzeug import secure_filename
+from flask.ext.autodoc import Autodoc
+
+
+
+
 
 # ++++ Where files are stored +++++
 
@@ -41,21 +46,19 @@ def add_visit(file):
     db.session.commit()
 
 
-def EMA(file):
+# +++++ Predictor +++++++++++++++++++++++++++     
+
+
+def WEMA(file):
 
     alpha = 0.8
     filename = file[0]
     current_time = datetime.datetime.utcnow()
     five_minutes_ago = current_time - datetime.timedelta(minutes=5)
-    sub_within_las_five_min = db.session.query(visits).filter((visits.date > five_minutes_ago),(visits.name == filename)).all()
-    a = len(sub_within_las_five_min)
-    interval_min_ago = current_time - datetime.timedelta(minutes=30)
-    sub_within_las_thirty_min = db.session.query(visits).filter((visits.date > interval_min_ago),(visits.name == filename)).all()
-    b = len(sub_within_las_thirty_min)
-
-    y = alpha*a + (1-alpha)*b
-    
-    #print str(a) 
+    req_last_five_min = db.session.query(visits).filter((visits.date > five_minutes_ago),(visits.name == filename)).count()
+    a = req_last_five_min
+    b = Content.query.filter_by(name=filename).one()
+    y = alpha*a + (1-alpha)*float(b.prediction)
     return y
 
 # +++++ Module that increments number of Hits of a file ++++
@@ -122,6 +125,7 @@ class Content(db.Model):
   name = db.Column(db.String(20))
   type = db.Column(db.String(20))
   Hits = db.Column(db.Integer)
+  prediction = db.Column(db.Integer)
   Server_id = db.Column(db.Integer, db.ForeignKey('Server.id'))
   harddrive_id = db.Column(db.Integer, db.ForeignKey('harddrive.id'))
 
@@ -172,6 +176,7 @@ def upload():
     <p>%s</p>
     """ % "<br>".join(os.listdir(app.config['UPLOAD_FOLDER'],))
 
+
 # ++++++++++++ File download from the server ++++++++++++++++
 
 
@@ -199,48 +204,39 @@ def maxhits():
     contenu1 = db.session.query(Content).join(sub1, sub1.c.max_hit == Content.Hits).first()
     return jsonify(contenu1.serialize()) 
 
+
 @app.route('/api/test/', methods=['GET'])
 def catalogue1():
   cache= db.session.query(Cache.name).all()
   Condidat = SortedSet()
-  #r = requests.get("http://192.168.198.140:5000/api/listdir")
-  #cache = r.content
-  #cache1= ast.literal_eval(cache)
-  #list=[0,1]
-  #my_dict= dict(zip(list,cache1))
-  #return str(my_dict.get(1))
-  #return cache1[1]
   catalogue = db.session.query(Content.name).all()
-  #return make_response(dumps(catalogue))
-  #catalogue2 = ast.literal_eval(dumps(catalogue))
   k=10
   for i in (catalogue):
-    s = EMA(i)
+    s = WEMA(i)
     if i in cache:
-      value = s + k
-        #value = 
-    else:
-      value = s 
-    Condidat.add((value,i))  
+      s = s + k 
+
+    filename=i[0]  
+    Condidat.add((s,filename))
+    cont = Content.query.filter_by(name=filename).update(dict(prediction=s))
+    db.session.commit()
   Condidat1=reversed(Condidat)
   Condidat2= list(Condidat1)
-  return make_response(dumps(Condidat2))
+  visits.query.delete()
   Cache.query.delete()  
   for i in Condidat2[0:3]:
-
     cach = Cache()
-
-    cach.name = i[1][0]
+    cach.name = i[1]
     db.session.add(cach)
     db.session.commit()
-
-
-    #cache.append(i[1])
-
   cache1 = db.session.query(Cache.name).all()
   return make_response(dumps(cache1)) 
      
+
+
+
 db.create_all()
+
 
 # +++++++++ API endpoints ++++++++++++++++++++++++++++++
 
@@ -253,6 +249,7 @@ manager.create_api(harddrive, include_columns=['id','name','capacity','type','Ro
 manager.create_api(Content, methods=['GET','POST','PUT','DELETE','COPY'])
 manager.create_api(visits, methods=['GET','POST','DELETE'])
 manager.create_api(Cache, methods=['GET','POST','DELETE','PUT'])
+
 
 if __name__ == '__main__':
 
