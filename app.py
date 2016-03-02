@@ -16,6 +16,9 @@ import os
 import sys
 from werkzeug import secure_filename
 from flask.ext.autodoc import Autodoc
+from paramiko import SSHClient
+from scp import SCPClient
+import paramiko
 
 
 
@@ -205,6 +208,8 @@ def maxhits():
     return jsonify(contenu1.serialize()) 
 
 
+# +++++++++ content caching algorithm ++++++++++++++++ 
+
 @app.route('/api/test/', methods=['GET'])
 def catalogue1():
   cache= db.session.query(Cache.name).all()
@@ -232,6 +237,27 @@ def catalogue1():
   cache1 = db.session.query(Cache.name).all()
   return make_response(dumps(cache1)) 
      
+
+
+# +++++  COPY FILES TO CACHE ++++++++++++++++++++
+@app.route('/api/copy', methods=['POST','GET'])
+def copy():
+  catalogue2 = db.session.query(Cache.name).all()
+
+  ssh = paramiko.SSHClient()
+  ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+  ssh.connect('192.168.198.140', username='cach', password='passwd')
+  sftp = ssh.open_sftp()
+  for file in catalogue2:
+    path1 = 'C:/Users/sony-vaio/Desktop/demo/uploads/%s' % file
+    path2 = '/home/loukili/API/uploads/%s' % file
+    sftp.put(path1,path2)
+
+  sftp.close()  
+  ssh.close()
+  return "copied successfully!"
+
+
 
 
 
