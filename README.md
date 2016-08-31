@@ -32,3 +32,5 @@ root@server:~# cd /root/floodlight; java -jar target/floodlight.jar
 curl -X POST -d '{"switch":"00:00:30:f9:ed:c6:a3:46", "name":"static-flow3", " cookie":"0", "priority":"32768", "ipv4_src":"192.168.1.24", "eth_type":"0x0800","active":"true","actions":"output=5"}' http://localhost:8080/wm/staticflowpusher/json
 
 
+Config Floodlight/Openvswitch : http://dannykim.me/danny/openflow/57620?ckattempt=1
+
