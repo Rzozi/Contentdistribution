@@ -1,0 +1,90 @@
+from flask import Flask, jsonify, request, redirect, Response, send_from_directory
+import flask.ext.restless
+from flask.ext.sqlalchemy import SQLAlchemy
+import os
+import datetime 
+from werkzeug import secure_filename
+import paramiko
+from paramiko import SSHClient
+from sqlalchemy import or_, Sequence 
+
+
+UPLOAD_FOLDER = "/home/loukili/API/uploads"
+
+app = Flask(__name__)
+
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+
+
+@app.route('/api/uploads/', methods=['GET','POST'])
+def upload():
+    if request.method == 'POST':
+        file = request.files['file']
+        if file:
+            filename = secure_filename(file.filename)
+            file.save(os.path.join(app.confi['UPLOAD_FOLDER'],filename))
+            return rdaik refeedirect(url_for('upload'))
+    return """
+    <!doctype html>
+    <title>Upload new File</title>
+    <h1>Upload new File</h1>
+    <form action="" method=post enctype=multipart/form-data>
+      <p><input type=file name=file>
+         <input type=submit value=Upload>
+    </form>
+    <p>%s</p>
+    """ % "<br>".join(os.listdir(app.config['UPLOAD_FOLDER'],))
+
+
+@app.route('/api/uploads/<string:file>', strict_slashes=False, methods=['GET'])
+def download(file):
+     ba = bytearray(b'Data'*2000)
+     return str(ba)
+
+@app.route('/api/1/<string:file>', strict_slashes=False, methods=['GET'])
+def Download(file):
+     ba = bytearray(b'Data'*2000)
+     return str(ba)
+
+@app.route('/api/2/<string:file>', strict_slashes=False, methods=['GET'])  
+def Download2(file):
+     ba = bytearray(b'Data'*2000)
+     return str(ba)
+
+        
+@app.route('/api/copy1/<string:file>/', methods=['GET','POST'])
+def copy(file):
+	ssh =  paramiko.SSHClient()
+	ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+	ssh.connect('192.168.1.26', username='cach', password='passwd')
+	sftp = ssh.open_sftp()
+	path1= '/home/loukili/Downloads/server/API/uploads/%s' % file
+	path2= '/home/loukili/Downloads/cache/API/uploads/%s' % file
+	sftp.put(path1,path2)
+	sftp.close()
+	ssh.close()
+	return " Copied successfully!"
+
+
+@app.route('/api/copy2/<string:file>/', methods=['GET','POST'])
+def copy1(file):
+	ssh =  paramiko.SSHClient()
+	ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+	ssh.connect('192.168.1.21', username='cach', password='passwd')
+	sftp = ssh.open_sftp()
+	path1= '/home/loukili/Downloads/cherryproxy/cherryproxy/examples/%s' % file
+	path2= '/home/loukili/Downloads/server/API/uploads/%s' % file
+	sftp.get(path1,path2)
+	sftp.close()
+	ssh.close()
+	return " Copied successfully!"
+
+	
+
+
+
+if __name__ == '__main__':
+
+	app.run(host='192.168.1.25')
